@@ -32,7 +32,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # NxRecorder Library
 
@@ -42,7 +42,7 @@ CSRCS = nxrecorder.c
 ifneq ($(CONFIG_NXRECORDER_COMMAND_LINE),)
 PROGNAME = nxrecorder
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_NXRECORDER_COMMAND_LINE)
 
 MAINSRC = nxrecorder_main.c

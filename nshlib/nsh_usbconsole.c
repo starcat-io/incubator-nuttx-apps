@@ -89,9 +89,10 @@ static void nsh_configstdio(int fd)
   dup2(fd, 1);
   dup2(fd, 2);
 
-  /* fdopen to get the stdin, stdout and stderr streams. The following logic depends
-   * on the fact that the library layer will allocate FILEs in order.  And since
-   * we closed stdin, stdout, and stderr above, that is what we should get.
+  /* fdopen to get the stdin, stdout and stderr streams. The following logic
+   * depends on the fact that the library layer will allocate FILEs in order.
+   * And since we closed stdin, stdout, and stderr above, that is what we
+   * should get.
    *
    * fd = 0 is stdin  (read-only)
    * fd = 1 is stdout (write-only, append)
@@ -129,9 +130,9 @@ static int nsh_nullstdio(void)
        */
 
       if (fd > 2)
-       {
+        {
           close(fd);
-       }
+        }
 
       return OK;
     }
@@ -171,8 +172,8 @@ restart:
       fd = open(CONFIG_NSH_USBCONDEV, O_RDWR);
       if (fd < 0)
         {
-          /* ENOTCONN means that the USB device is not yet connected. Anything
-           * else is bad.
+          /* ENOTCONN means that the USB device is not yet connected.
+           * Anything else is bad.
            */
 
           DEBUGASSERT(errno == ENOTCONN);
@@ -230,7 +231,7 @@ restart:
 
   nsh_configstdio(fd);
 
-  /* We can close the original file descriptor now (unless it was one of 0-2) */
+  /* We can close the original file descriptor (unless it was one of 0-2) */
 
   if (fd > 2)
     {
@@ -257,7 +258,7 @@ restart:
  *   operations to handle the cases where the session is lost when the
  *   USB device is unplugged and restarted when the USB device is plugged
  *   in again.
-  *
+ *
  * Input Parameters:
  *   Standard task start-up arguments.  These are not used.  argc may be
  *   zero and argv may be NULL.
@@ -268,7 +269,7 @@ restart:
  *
  ****************************************************************************/
 
-int nsh_consolemain(int argc, char *argv[])
+int nsh_consolemain(int argc, FAR char *argv[])
 {
   FAR struct console_stdio_s *pstate = nsh_newconsole();
   struct boardioc_usbdev_ctrl_s ctrl;
@@ -333,7 +334,7 @@ int nsh_consolemain(int argc, char *argv[])
 
   /* Now loop, executing creating a session for each USB connection */
 
-  for (;;)
+  for (; ; )
     {
       /* Wait for the USB to be connected to the host and switch
        * standard I/O to the USB serial device.
@@ -345,7 +346,7 @@ int nsh_consolemain(int argc, char *argv[])
 
       /* Execute the session */
 
-      nsh_session(pstate);
+      nsh_session(pstate, true, argc, argv);
 
       /* Switch to /dev/null because we probably no longer have a
        * valid console device.

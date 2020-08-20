@@ -1,35 +1,20 @@
 /****************************************************************************
  * system/usbmsc/usbmsc_main.c
  *
- *   Copyright (C) 2008-2012, 2016 Gregory Nutt. All rights reserved.
- *   Author: Gregory Nutt <gnutt@nuttx.org>
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.  The
+ * ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the
+ * License.  You may obtain a copy of the License at
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
  *
  ****************************************************************************/
 
@@ -45,6 +30,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <debug.h>
 
@@ -149,11 +135,7 @@ static void check_test_memory_usage(FAR const char *msg)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_usbmsc.mmcurrent = mallinfo();
-#else
-  mallinfo(&g_usbmsc.mmcurrent);
-#endif
 
   /* Show the change from the previous time */
 
@@ -162,11 +144,7 @@ static void check_test_memory_usage(FAR const char *msg)
 
   /* Set up for the next test */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_usbmsc.mmprevious = g_usbmsc.mmcurrent;
-#else
-  memcpy(&g_usbmsc.mmprevious, &g_usbmsc.mmcurrent, sizeof(struct mallinfo));
-#endif
 }
 #else
 #  define check_test_memory_usage(msg)
@@ -181,11 +159,7 @@ static void final_memory_usage(FAR const char *msg)
 {
   /* Get the current memory usage */
 
-#ifdef CONFIG_CAN_PASS_STRUCTS
   g_usbmsc.mmcurrent = mallinfo();
-#else
-  mallinfo(&g_usbmsc.mmcurrent);
-#endif
 
   /* Show the change from the previous time */
 
@@ -455,13 +429,8 @@ int main(int argc, FAR char *argv[])
     }
 
 #ifdef CONFIG_SYSTEM_USBMSC_DEBUGMM
-#  ifdef CONFIG_CAN_PASS_STRUCTS
   g_usbmsc.mmstart    = mallinfo();
   g_usbmsc.mmprevious = g_usbmsc.mmstart;
-#  else
-  mallinfo(&g_usbmsc.mmstart);
-  memcpy(&g_usbmsc.mmprevious, &g_usbmsc.mmstart, sizeof(struct mallinfo));
-#  endif
 #endif
 
   /* Initialize USB trace output IDs */
@@ -509,11 +478,15 @@ int main(int argc, FAR char *argv[])
   printf("mcsonn_main: handle=%p\n", handle);
   check_test_memory_usage("After usbmsc_configure()");
 
-  printf("mcsonn_main: Bind LUN=0 to %s\n", CONFIG_SYSTEM_USBMSC_DEVPATH1);
+  printf("mcsonn_main: Bind LUN=0 to %s\n",
+         CONFIG_SYSTEM_USBMSC_DEVPATH1);
+
 #ifdef CONFIG_SYSTEM_USBMSC_WRITEPROTECT1
-  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH1, 0, 0, 0, true);
+  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH1, 0, 0, 0,
+                       true);
 #else
-  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH1, 0, 0, 0, false);
+  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH1, 0, 0, 0,
+                       false);
 #endif
   if (ret < 0)
     {
@@ -527,11 +500,15 @@ int main(int argc, FAR char *argv[])
 
 #if CONFIG_SYSTEM_USBMSC_NLUNS > 1
 
-  printf("mcsonn_main: Bind LUN=1 to %s\n", CONFIG_SYSTEM_USBMSC_DEVPATH2);
+  printf("mcsonn_main: Bind LUN=1 to %s\n",
+         CONFIG_SYSTEM_USBMSC_DEVPATH2);
+
 #ifdef CONFIG_SYSTEM_USBMSC_WRITEPROTECT2
-  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH2, 1, 0, 0, true);
+  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH2, 1, 0, 0,
+                       true);
 #else
-  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH2, 1, 0, 0, false);
+  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH2, 1, 0, 0,
+                       false);
 #endif
   if (ret < 0)
     {
@@ -545,11 +522,15 @@ int main(int argc, FAR char *argv[])
 
 #if CONFIG_SYSTEM_USBMSC_NLUNS > 2
 
-  printf("mcsonn_main: Bind LUN=2 to %s\n", CONFIG_SYSTEM_USBMSC_DEVPATH3);
+  printf("mcsonn_main: Bind LUN=2 to %s\n",
+         CONFIG_SYSTEM_USBMSC_DEVPATH3);
+
 #ifdef CONFIG_SYSTEM_USBMSC_WRITEPROTECT3
-  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH3, 2, 0, 0, true);
+  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH3, 2, 0, 0,
+                       true);
 #else
-  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH3, 2, 0, 0, false);
+  ret = usbmsc_bindlun(handle, CONFIG_SYSTEM_USBMSC_DEVPATH3, 2, 0, 0,
+                       false);
 #endif
   if (ret < 0)
     {
@@ -629,7 +610,9 @@ int msdis_main(int argc, char *argv[])
 
   check_test_memory_usage("Since MS connection");
 
-  /* Then disconnect the device and uninitialize the USB mass storage driver */
+  /* Then disconnect the device and uninitialize the USB mass storage
+   * driver.
+   */
 
   usbmsc_disconnect(g_usbmsc.mshandle);
   g_usbmsc.mshandle = NULL;

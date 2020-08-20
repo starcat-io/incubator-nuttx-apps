@@ -46,14 +46,11 @@
 #include <pthread.h>
 #include <time.h>
 
-#include <graphics/lvgl.h>
+#include <lvgl/lvgl.h>
 
 #include "fbdev.h"
 #include "tp.h"
 #include "tp_cal.h"
-#include "demo.h"
-#include "lv_test_theme_1.h"
-#include "lv_test_theme_2.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -61,8 +58,10 @@
 
 /* Should we perform board-specific driver initialization?  There are two
  * ways that board initialization can occur:  1) automatically via
- * board_late_initialize() during bootup if CONFIG_BOARD_LATE_INITIALIZE, or 2)
- * via a call to boardctl() if the interface is enabled (CONFIG_LIB_BOARDCTL=y).
+ * board_late_initialize() during bootupif CONFIG_BOARD_LATE_INITIALIZE
+ * or 2).
+ * via a call to boardctl() if the interface is enabled
+ * (CONFIG_LIB_BOARDCTL=y).
  * If this task is running as an NSH built-in application, then that
  * initialization has probably already been performed otherwise we do it
  * here.
@@ -73,6 +72,18 @@
 #if defined(CONFIG_LIB_BOARDCTL) && !defined(CONFIG_NSH_ARCHINIT)
 #  define NEED_BOARDINIT 1
 #endif
+
+#define DISPLAY_BUFFER_SIZE (CONFIG_LV_HOR_RES * \
+                              CONFIG_EXAMPLES_LVGLDEMO_BUFF_SIZE)
+
+/****************************************************************************
+ * Public Functions Prototypes
+ ****************************************************************************/
+
+void lv_demo_benchmark(void);
+void lv_demo_printer(void);
+void lv_demo_stress(void);
+void lv_demo_widgets(void);
 
 /****************************************************************************
  * Private Functions
@@ -148,6 +159,33 @@ int main(int argc, FAR char *argv[])
   lv_disp_drv_t disp_drv;
   pthread_t tick_thread;
 
+  lv_disp_buf_t disp_buf;
+  static lv_color_t buf[DISPLAY_BUFFER_SIZE];
+
+#ifndef CONFIG_EXAMPLES_LVGLDEMO_CALIBRATE
+  lv_point_t p[4];
+
+  /* top left */
+
+  p[0].x = 0;
+  p[0].y = 0;
+
+  /* top right */
+
+  p[1].x = LV_HOR_RES;
+  p[1].y = 0;
+
+  /* bottom left */
+
+  p[2].x = 0;
+  p[2].y = LV_VER_RES;
+
+  /* bottom right */
+
+  p[3].x = LV_HOR_RES;
+  p[3].y = LV_VER_RES;
+#endif
+
 #ifdef NEED_BOARDINIT
   /* Perform board-specific driver initialization */
 
@@ -170,8 +208,10 @@ int main(int argc, FAR char *argv[])
 
   /* Basic LittlevGL display driver initialization */
 
+  lv_disp_buf_init(&disp_buf, buf, NULL, DISPLAY_BUFFER_SIZE);
   lv_disp_drv_init(&disp_drv);
-  disp_drv.disp_flush = fbdev_flush;
+  disp_drv.flush_cb = fbdev_flush;
+  disp_drv.buffer = &disp_buf;
   lv_disp_drv_register(&disp_drv);
 
   /* Tick interface initialization */
@@ -189,50 +229,27 @@ int main(int argc, FAR char *argv[])
    * mouse position and state.
    */
 
-  indev_drv.read = tp_read;
+  indev_drv.read_cb = tp_read;
   lv_indev_drv_register(&indev_drv);
 
-  /* Demo initialization */
-
-#if defined(CONFIG_EXAMPLES_LVGLDEMO_SIMPLE)
-
-  demo_create();
-
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1)
-
-  lv_theme_t *theme = NULL;
-
-#if   defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_DEFAULT)
-  theme = lv_theme_default_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_ALIEN)
-  theme = lv_theme_alien_init(EXAMPLES_LVGLDEMO_THEME_1_HUE,   NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_NIGHT)
-  theme = lv_theme_night_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_MONO)
-  theme = lv_theme_mono_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_MATERIAL)
-  theme = lv_theme_material_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_ZEN)
-  theme = lv_theme_zen_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_1_NEMO)
-  theme = lv_theme_nemo_init(EXAMPLES_LVGLDEMO_THEME_1_HUE, NULL);
-#else
-#  error "No theme selected for this application"
-#endif
-
- lv_test_theme_1(theme);
-
-#elif defined(CONFIG_EXAMPLES_LVGLDEMO_THEME_2)
-  lv_test_theme_2();
-#else
-#  error "No LVGL demo selected"
+#if defined(CONFIG_EXAMPLES_LVGLDEMO_BENCHMARK)
+  lv_demo_benchmark();
+#elif defined(CONFIG_EXAMPLES_LVGLDEMO_PRINTER)
+  lv_demo_printer();
+#elif defined(CONFIG_EXAMPLES_LVGLDEMO_STRESS)
+  lv_demo_stress();
+#elif defined(CONFIG_EXAMPLES_LVGLDEMO_WIDGETS)
+  lv_demo_widgets();
 #endif
 
   /* Start TP calibration */
 
+#ifdef CONFIG_EXAMPLES_LVGLDEMO_CALIBRATE
   tp_cal_create();
-
-  /* Handle LittlevGL tasks */
+#else
+  tp_set_cal_values(p, p + 1, p + 2, p + 3);
+#endif
+  /* Handle LVGL tasks */
 
   while (1)
     {

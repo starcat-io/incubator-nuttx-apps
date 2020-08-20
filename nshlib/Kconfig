@@ -434,7 +434,7 @@ config NSH_DISABLE_NSLOOKUP
 config NSH_DISABLE_PASSWD
 	bool "Disable passwd"
 	default y
-	depends on NSH_LOGIN_PASSWD && FS_WRITABLE && !FSUTILS_PASSWD_READONLY
+	depends on NSH_LOGIN_PASSWD && !FSUTILS_PASSWD_READONLY
 
 config NSH_DISABLE_PMCONFIG
 	bool "Disable pmconfig"
@@ -507,8 +507,8 @@ config NSH_DISABLE_SET
 	bool "Disable set"
 	default n
 
-config NSH_DISABLE_SH
-	bool "Disable sh"
+config NSH_DISABLE_SOURCE
+	bool "Disable source"
 	default n
 
 config NSH_DISABLE_SHUTDOWN
@@ -567,12 +567,12 @@ config NSH_DISABLE_URLENCODE
 config NSH_DISABLE_USERADD
 	bool "Disable useradd"
 	default y
-	depends on NSH_LOGIN_PASSWD && FS_WRITABLE && !FSUTILS_PASSWD_READONLY
+	depends on NSH_LOGIN_PASSWD && !FSUTILS_PASSWD_READONLY
 
 config NSH_DISABLE_USERDEL
 	bool "Disable userdel"
 	default y
-	depends on NSH_LOGIN_PASSWD && FS_WRITABLE && !FSUTILS_PASSWD_READONLY
+	depends on NSH_LOGIN_PASSWD && !FSUTILS_PASSWD_READONLY
 
 config NSH_DISABLE_USLEEP
 	bool "Disable usleep"
@@ -1121,6 +1121,14 @@ config NSH_NETINIT
 	---help---
 		This option enables/disables all network initialization in NSH.
 
+if !NSH_DISABLE_WGET
+config NSH_WGET_BUFF_SIZE
+	int "wget buffer size"
+	default 512
+	---help---
+		Buffer size for wget command
+endif # NSH_DISABLE_WGET
+
 endmenu # Networking Configuration"
 
 menu "Telnet Configuration"
@@ -1154,7 +1162,7 @@ config NSH_TELNETD_DAEMONPRIO
 
 config NSH_TELNETD_DAEMONSTACKSIZE
 	int "Telnet daemon stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Stack size allocated for the Telnet daemon. Default: 2048
 
@@ -1166,7 +1174,7 @@ config NSH_TELNETD_CLIENTPRIO
 
 config NSH_TELNETD_CLIENTSTACKSIZE
 	int "Telnet client stack size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Stack size allocated for the Telnet client. Default: 2048
 

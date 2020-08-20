@@ -10,10 +10,11 @@
  *   All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *  - Redistributions of  source code must  retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
+ *  - Redistributions of  source code must  retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
  *  - Redistributions in binary form must reproduce the above copyright
  *    notice, this list of  conditions and the  following disclaimer in the
@@ -151,7 +152,8 @@ static inline double wapi_freq2float(const struct iw_freq *freq)
  * Name: wapi_float2freq
  *
  * Description:
- *   Converts a floating point the our internal representation of frequencies.
+ *   Converts a floating point the our internal representation of
+ *   frequencies.
  *
  ****************************************************************************/
 
@@ -1061,7 +1063,8 @@ int wapi_get_txpower(int sock, FAR const char *ifname, FAR int *power,
         {
           *flag = WAPI_TXPOWER_MWATT;
         }
-      else if (IW_TXPOW_RELATIVE == (wrq.u.txpower.flags & IW_TXPOW_RELATIVE))
+      else if (IW_TXPOW_RELATIVE ==
+               (wrq.u.txpower.flags & IW_TXPOW_RELATIVE))
         {
           *flag = WAPI_TXPOWER_RELATIVE;
         }
@@ -1143,13 +1146,27 @@ int wapi_set_txpower(int sock, FAR const char *ifname, int power,
  *
  ****************************************************************************/
 
-int wapi_scan_init(int sock, const char *ifname)
+int wapi_scan_init(int sock, const char *ifname, const char *essid)
 {
+  struct iw_scan_req req;
   struct iwreq wrq =
   {
   };
 
+  size_t essid_len;
   int ret;
+
+  if (essid && (essid_len = strlen(essid)) > 0)
+    {
+      memset(&req, 0, sizeof(req));
+      req.essid_len       = essid_len;
+      req.bssid.sa_family = ARPHRD_ETHER;
+      memset(req.bssid.sa_data, 0xff, IFHWADDRLEN);
+      memcpy(req.essid, essid, essid_len);
+      wrq.u.data.pointer  = (caddr_t)&req;
+      wrq.u.data.length   = sizeof(req);
+      wrq.u.data.flags    = IW_SCAN_THIS_ESSID;
+    }
 
   strncpy(wrq.ifr_name, ifname, IFNAMSIZ);
   ret = ioctl(sock, SIOCSIWSCAN, (unsigned long)((uintptr_t)&wrq));
@@ -1318,4 +1335,34 @@ alloc:
 
   free(buf);
   return ret;
+}
+
+/****************************************************************************
+ * Name: wapi_scan_coll_free
+ *
+ * Description:
+ *   Free the scan results.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void wapi_scan_coll_free(FAR struct wapi_list_s *list)
+{
+  FAR struct wapi_scan_info_s *temp;
+  FAR struct wapi_scan_info_s *info;
+
+  if (list == NULL)
+    {
+      return;
+    }
+
+  info = list->head.scan;
+  while (info)
+    {
+      temp = info->next;
+      free(info);
+      info = temp;
+    }
 }

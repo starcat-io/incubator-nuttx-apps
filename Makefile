@@ -36,19 +36,7 @@
 ############################################################################
 
 APPDIR = $(CURDIR)
-TOPDIR ?= $(APPDIR)/import
--include $(TOPDIR)/Make.defs
--include $(APPDIR)/Make.defs
-
-# The GNU make CURDIR will always be a POSIX-like path with forward slashes
-# as path segment separators.  This is fine for the above inclusions but
-# will cause problems later for the native build.  If we know that this is
-# a native build, then we need to fix up the APPDIR path for subsequent
-# use
-
-ifeq ($(CONFIG_WINDOWS_NATIVE),y)
-APPDIR := ${shell echo %CD%}
-endif
+include $(APPDIR)/Make.defs
 
 # Symbol table for loadable apps.
 
@@ -61,17 +49,6 @@ all: $(BIN)
 .PHONY: import install dirlinks context context_serialize clean_context context_rest export .depdirs preconfig depend clean distclean
 .PRECIOUS: $(BIN)
 
-define MAKE_template
-	+$(Q) $(MAKE) -C $(1) $(2) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"
-
-endef
-
-define SDIR_template
-$(1)_$(2):
-	+$(Q) $(MAKE) -C $(1) $(2) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"
-
-endef
-
 $(foreach SDIR, $(CONFIGURED_APPS), $(eval $(call SDIR_template,$(SDIR),all)))
 $(foreach SDIR, $(CONFIGURED_APPS), $(eval $(call SDIR_template,$(SDIR),install)))
 $(foreach SDIR, $(CONFIGURED_APPS), $(eval $(call SDIR_template,$(SDIR),context)))
@@ -79,22 +56,27 @@ $(foreach SDIR, $(CONFIGURED_APPS), $(eval $(call SDIR_template,$(SDIR),depend))
 $(foreach SDIR, $(CLEANDIRS), $(eval $(call SDIR_template,$(SDIR),clean)))
 $(foreach SDIR, $(CLEANDIRS), $(eval $(call SDIR_template,$(SDIR),distclean)))
 
+$(MKDEP): $(TOPDIR)/tools/mkdeps.c
+	$(HOSTCC) $(HOSTINCLUDES) $(HOSTCFLAGS) $< -o $@
+
+$(INCDIR): $(TOPDIR)/tools/incdir.c
+	$(HOSTCC) $(HOSTINCLUDES) $(HOSTCFLAGS) $< -o $@
+
+IMPORT_TOOLS = $(MKDEP) $(INCDIR)
+
 # In the KERNEL build, we must build and install all of the modules.  No
 # symbol table is needed
 
 ifeq ($(CONFIG_BUILD_KERNEL),y)
 
-.install: $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_install)
-
-install: $(BINDIR) .install
-
-$(BINDIR):
-	$(Q) mkdir -p $(BINDIR)
+install: $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_install)
 
 .import: $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_all)
 	$(Q) $(MAKE) install TOPDIR="$(TOPDIR)"
 
-import: $(BINDIR)
+import: $(IMPORT_TOOLS)
+	$(Q) $(MAKE) context TOPDIR="$(APPDIR)$(DELIM)import"
+	$(Q) $(MAKE) depend TOPDIR="$(APPDIR)$(DELIM)import"
 	$(Q) $(MAKE) .import TOPDIR="$(APPDIR)$(DELIM)import"
 
 else
@@ -110,13 +92,14 @@ else
 
 $(SYMTABSRC): $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_all)
 	$(Q) $(MAKE) install TOPDIR="$(TOPDIR)"
-	$(Q) $(APPDIR)$(DELIM)tools$(DELIM)mksymtab.sh $(BINDIR) $(SYMTABSRC)
+	$(Q) $(APPDIR)$(DELIM)tools$(DELIM)mksymtab.sh $(BINDIR) >$@.tmp
+	$(Q) $(call TESTANDREPLACEFILE, $@.tmp, $@)
 
 $(SYMTABOBJ): %$(OBJEXT): %.c
 	$(call COMPILE, -fno-lto $<, $@)
 
 $(BIN): $(SYMTABOBJ)
-ifeq ($(WINTOOL),y)
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
 	$(call ARLOCK, "${shell cygpath -w $(BIN)}", $^)
 else
 	$(call ARLOCK, $(BIN), $^)
@@ -124,16 +107,32 @@ endif
 
 endif # !CONFIG_BUILD_LOADABLE
 
-.install: $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_install)
+install: $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_install)
 
-$(BINDIR):
-	$(Q) mkdir -p $(BINDIR)
+# Link nuttx
 
-install: $(BINDIR) .install
+HEAD_OBJ += $(wildcard $(APPDIR)$(DELIM)import$(DELIM)startup$(DELIM)*$(OBJEXT))
+HEAD_OBJ += $(wildcard $(APPDIR)$(DELIM)builtin$(DELIM)*$(OBJEXT))
 
 .import: $(BIN) install
+	$(Q) echo "LD: nuttx"
+	$(Q) $(LD) --entry=__start $(LDFLAGS) $(LDLIBPATH) $(EXTRA_LIBPATHS) \
+	  -L$(APPDIR)$(DELIM)import$(DELIM)scripts -T$(LDNAME) \
+	  -o nuttx$(EXEEXT) $(HEAD_OBJ) $(EXTRA_OBJS) $(LDSTARTGROUP) \
+	  $(BIN) $(LDLIBS) $(EXTRA_LIBS) $(LDENDGROUP)
+ifeq ($(CONFIG_INTELHEX_BINARY),y)
+	$(Q) echo "CP: nuttx.hex"
+	$(Q) $(OBJCOPY) $(OBJCOPYARGS) -O ihex nuttx$(EXEEXT) nuttx.hex
+endif
+ifeq ($(CONFIG_RAW_BINARY),y)
+	$(Q) echo "CP: nuttx.bin"
+	$(Q) $(OBJCOPY) $(OBJCOPYARGS) -O binary nuttx$(EXEEXT) nuttx.bin
+endif
+	$(call POSTBUILD, $(APPDIR))
 
-import:
+import: $(IMPORT_TOOLS)
+	$(Q) $(MAKE) context TOPDIR="$(APPDIR)$(DELIM)import"
+	$(Q) $(MAKE) depend TOPDIR="$(APPDIR)$(DELIM)import"
 	$(Q) $(MAKE) .import TOPDIR="$(APPDIR)$(DELIM)import"
 
 endif # CONFIG_BUILD_KERNEL
@@ -150,7 +149,7 @@ context_serialize:
 context: context_serialize
 
 Kconfig:
-	$(foreach SDIR, $(BUILDIRS), $(call MAKE_template,$(SDIR),preconfig))
+	$(foreach SDIR, $(CONFIGDIRS), $(call MAKE_template,$(SDIR),preconfig))
 	$(Q) $(MKKCONFIG)
 
 preconfig: Kconfig
@@ -167,13 +166,14 @@ endif
 
 .depdirs: $(foreach SDIR, $(CONFIGURED_APPS), $(SDIR)_depend)
 
-.depend: context Makefile .depdirs
+.depend: Makefile .depdirs
 	$(Q) touch $@
 
 depend: .depend
 
 clean_context:
 	$(Q) $(MAKE) -C platform clean_context TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"
+	$(Q) $(MAKE) -C builtin clean_context TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"
 
 clean: $(foreach SDIR, $(CLEANDIRS), $(SDIR)_clean)
 	$(call DELFILE, $(SYMTABSRC))

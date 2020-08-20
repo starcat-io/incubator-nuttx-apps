@@ -366,7 +366,7 @@ config NXWM_STARTWINDOW_PRIO
 
 config NXWM_STARTWINDOW_STACKSIZE
 	int "StartWindow Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		The stack size to use when starting the StartWindow task.  Default:
 		2048 bytes.
@@ -396,7 +396,7 @@ config NXWM_NXTERM_PRIO
 
 config NXWM_NXTERM_STACKSIZE
 	int "NxTerm Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		The stack size to use when starting the NxTerm task.  Default:
 		2048 bytes.
@@ -574,7 +574,7 @@ config NXWM_KEYBOARD_LISTENERPRIO
 
 config NXWM_KEYBOARD_LISTENERSTACK
 	int "Keyboard Listener Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Keyboard listener thread stack size.  Default: 1024
 
@@ -742,7 +742,7 @@ config NXWM_CALIBRATION_LISTENERPRIO
 
 config NXWM_CALIBRATION_LISTENERSTACK
 	int "Calibration Task Stack Size"
-	default 2048
+	default DEFAULT_TASK_STACKSIZE
 	---help---
 		Calibration listener thread stack size.  Default 2048
 
@@ -811,7 +811,7 @@ menu "NxWM Media Player Display Settings"
 config NXWM_MEDIAPLAYER
 	bool "NxWM Media Player"
 	default n
-	depends on FS_READABLE && SYSTEM_NXPLAYER
+	depends on SYSTEM_NXPLAYER
 	---help---
 		Enable support for the MP3 Media Player.  This features requires
 		a board that includes an MP3 Codec chip, such as the Mikromedia

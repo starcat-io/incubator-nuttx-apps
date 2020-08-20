@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # hts221_reader example
 
@@ -43,7 +43,7 @@ MAINSRC = hts221_reader_main.c
 
 PROGNAME = hts221_reader
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_HTS221_READER)
 
 include $(APPDIR)/Application.mk

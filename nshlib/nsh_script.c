@@ -65,7 +65,7 @@ int nsh_script(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
   FAR char *pret;
   int ret = ERROR;
 
-  /* The path to the script may be relative to the current working directory */
+  /* The path to the script may relative to the current working directory */
 
   fullpath = nsh_getfullpath(vtbl, path);
   if (!fullpath)
@@ -131,13 +131,13 @@ int nsh_script(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
           if (pret)
             {
               /* Parse process the command.  NOTE:  this is recursive...
-               * we got to cmd_sh via a call to nsh_parse.  So some
+               * we got to cmd_source via a call to nsh_parse.  So some
                * considerable amount of stack may be used.
                */
 
               if ((vtbl->np.np_flags & NSH_PFLAG_SILENT) == 0)
                 {
-                  nsh_output(vtbl,"%s", buffer);
+                  nsh_output(vtbl, "%s", buffer);
                 }
 
               ret = nsh_parse(vtbl, buffer);
@@ -190,6 +190,12 @@ int nsh_initscript(FAR struct nsh_vtbl_s *vtbl)
   if (!already)
     {
       ret = nsh_script(vtbl, "init", NSH_INITPATH);
+
+#ifndef CONFIG_NSH_DISABLESCRIPT
+      /* Reset the option flags */
+
+      vtbl->np.np_flags = NSH_NP_SET_OPTIONS_INIT;
+#endif
     }
 
   return ret;

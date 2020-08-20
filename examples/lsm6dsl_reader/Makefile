@@ -33,7 +33,7 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
 # lsm6dsl_reader example
 
@@ -43,7 +43,7 @@ MAINSRC = lsm6dsl_reader_main.c
 
 PROGNAME = lsm6dsl_reader
 PRIORITY = SCHED_PRIORITY_DEFAULT
-STACKSIZE = 2048
+STACKSIZE = $(CONFIG_DEFAULT_TASK_STACKSIZE)
 MODULE = $(CONFIG_EXAMPLES_LSM6DSL_READER)
 
 include $(APPDIR)/Application.mk

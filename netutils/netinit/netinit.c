@@ -100,6 +100,7 @@
 #  undef CONFIG_NET_LOCAL
 #  undef CONFIG_NET_USRSOCK
 #  undef CONFIG_NET_IEEE802154
+#  undef CONFIG_NET_CAN
 #  undef CONFIG_NET_LOOPBACK
 #elif defined(CONFIG_NET_6LOWPAN)
 #  undef CONFIG_NET_SLIP
@@ -107,26 +108,34 @@
 #  undef CONFIG_NET_LOCAL
 #  undef CONFIG_NET_USRSOCK
 #  undef CONFIG_NET_IEEE802154
+#  undef CONFIG_NET_CAN
 #  undef CONFIG_NET_LOOPBACK
 #elif defined(CONFIG_NET_SLIP)
 #  undef CONFIG_NET_TUN
 #  undef CONFIG_NET_LOCAL
 #  undef CONFIG_NET_USRSOCK
 #  undef CONFIG_NET_IEEE802154
+#  undef CONFIG_NET_CAN
 #  undef CONFIG_NET_LOOPBACK
 #elif defined(CONFIG_NET_TUN)
 #  undef CONFIG_NET_LOCAL
 #  undef CONFIG_NET_USRSOCK
 #  undef CONFIG_NET_IEEE802154
+#  undef CONFIG_NET_CAN
 #  undef CONFIG_NET_LOOPBACK
 #elif defined(CONFIG_NET_LOCAL)
 #  undef CONFIG_NET_USRSOCK
 #  undef CONFIG_NET_IEEE802154
+#  undef CONFIG_NET_CAN
 #  undef CONFIG_NET_LOOPBACK
 #elif defined(CONFIG_NET_USRSOCK)
 #  undef CONFIG_NET_IEEE802154
+#  undef CONFIG_NET_CAN
 #  undef CONFIG_NET_LOOPBACK
 #elif defined(CONFIG_NET_IEEE802154)
+#  undef CONFIG_NET_CAN
+#  undef CONFIG_NET_LOOPBACK
+#elif defined(CONFIG_NET_CAN)
 #  undef CONFIG_NET_LOOPBACK
 #endif
 
@@ -188,6 +197,9 @@
 #  define NETINIT_HAVE_NETDEV
 #elif defined(CONFIG_NET_LOCAL)
 #  define NET_DEVNAME "lo"
+#  define NETINIT_HAVE_NETDEV
+#elif defined(CONFIG_NET_CAN)
+#  define NET_DEVNAME "can0"
 #  define NETINIT_HAVE_NETDEV
 #endif
 
@@ -411,17 +423,24 @@ static void netinit_net_bringup(void)
 {
 #ifdef CONFIG_NETINIT_DHCPC
   uint8_t mac[IFHWADDRLEN];
+  struct dhcpc_state ds;
   FAR void *handle;
 #endif
 
   /* Bring the network up. */
 
-  netlib_ifup(NET_DEVNAME);
+  if (netlib_ifup(NET_DEVNAME) < 0)
+    {
+      return;
+    }
 
 #ifdef CONFIG_WIRELESS_WAPI
   /* Associate the wlan with an access point. */
 
-  netinit_associate(NET_DEVNAME);
+  if (netinit_associate(NET_DEVNAME) < 0)
+    {
+      return;
+    }
 #endif
 
 #ifdef CONFIG_NET_ICMPv6_AUTOCONF
@@ -438,40 +457,37 @@ static void netinit_net_bringup(void)
   /* Set up the DHCPC modules */
 
   handle = dhcpc_open(NET_DEVNAME, &mac, IFHWADDRLEN);
+  if (handle == NULL)
+    {
+      return;
+    }
 
-  /* Get an IP address.  Note that there is no logic for renewing the IP
-   * address in this example.  The address should be renewed in
-   * ds.lease_time/2 seconds.
+  /* Get an IP address.  Note that there is no logic for renewing the
+   * IP address in this example. The address should be renewed in
+   * (ds.lease_time / 2) seconds.
    */
 
-  if (handle != NULL)
+  if (dhcpc_request(handle, &ds) == OK)
     {
-      struct dhcpc_state ds =
-      {
-      };
+      netlib_set_ipv4addr(NET_DEVNAME, &ds.ipaddr);
 
-      if (dhcpc_request(handle, &ds) == OK)
+      if (ds.netmask.s_addr != 0)
         {
-          netlib_set_ipv4addr(NET_DEVNAME, &ds.ipaddr);
-
-          if (ds.netmask.s_addr != 0)
-            {
-              netlib_set_ipv4netmask(NET_DEVNAME, &ds.netmask);
-            }
-
-          if (ds.default_router.s_addr != 0)
-            {
-              netlib_set_dripv4addr(NET_DEVNAME, &ds.default_router);
-            }
-
-          if (ds.dnsaddr.s_addr != 0)
-            {
-              netlib_set_ipv4dnsaddr(&ds.dnsaddr);
-            }
+          netlib_set_ipv4netmask(NET_DEVNAME, &ds.netmask);
         }
 
-      dhcpc_close(handle);
+      if (ds.default_router.s_addr != 0)
+        {
+          netlib_set_dripv4addr(NET_DEVNAME, &ds.default_router);
+        }
+
+      if (ds.dnsaddr.s_addr != 0)
+        {
+          netlib_set_ipv4dnsaddr(&ds.dnsaddr);
+        }
     }
+
+  dhcpc_close(handle);
 #endif
 
 #ifdef CONFIG_NETUTILS_NTPCLIENT
@@ -760,7 +776,8 @@ static int netinit_monitor(void)
   /* TODO: Stop the PHY notifications and remove the signal handler. */
 
 errout_with_notification:
-#  warning Missing logic
+  ifr.ifr_mii_notify_event.sigev_notify = SIGEV_NONE;
+  ioctl(sd, SIOCMIINOTIFY, (unsigned long)&ifr);
 errout_with_sigaction:
   sigaction(CONFIG_NETINIT_SIGNO, &oact, NULL);
 errout_with_socket:

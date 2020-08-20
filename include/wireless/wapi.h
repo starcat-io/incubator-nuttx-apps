@@ -641,7 +641,7 @@ int wapi_make_socket(void);
  *
  ****************************************************************************/
 
-int wapi_scan_init(int sock, FAR const char *ifname);
+int wapi_scan_init(int sock, FAR const char *ifname, FAR const char *essid);
 
 /****************************************************************************
  * Name: wapi_scan_stat
@@ -669,6 +669,19 @@ int wapi_scan_stat(int sock, FAR const char *ifname);
 
 int wapi_scan_coll(int sock, FAR const char *ifname,
                    FAR struct wapi_list_s *aps);
+
+/****************************************************************************
+ * Name: wapi_scan_coll_free
+ *
+ * Description:
+ *   Free the scan results.
+ *
+ * Input Parameters:
+ *   aps - Release the collected struct wapi_scan_info_s.
+ *
+ ****************************************************************************/
+
+void wapi_scan_coll_free(FAR struct wapi_list_s *aps);
 
 #ifdef CONFIG_WIRELESS_WAPI_INITCONF
 /****************************************************************************
@@ -735,6 +748,23 @@ int wpa_driver_wext_set_key_ext(int sockfd, FAR const char *ifname,
                                 size_t key_len);
 
 /****************************************************************************
+ * Name: wpa_driver_wext_get_key_ext
+ *
+ * Description:
+ *
+ * Input Parameters:
+ *   sockfd - Opened network socket
+ *   ifname - Interface name
+ *
+ * Returned Value:
+ *
+ ****************************************************************************/
+
+int wpa_driver_wext_get_key_ext(int sockfd, FAR const char *ifname,
+                                enum wpa_alg_e *alg, FAR char *key,
+                                size_t *req_len);
+
+/****************************************************************************
  * Name: wpa_driver_wext_associate
  *
  * Description:
@@ -761,6 +791,20 @@ int wpa_driver_wext_associate(FAR struct wpa_wconfig_s *wconfig);
 
 int wpa_driver_wext_set_auth_param(int sockfd, FAR const char *ifname,
                                    int idx, uint32_t value);
+
+/****************************************************************************
+ * Name: wpa_driver_wext_get_auth_param
+ *
+ * Description:
+ *
+ * Input Parameters:
+ *
+ * Returned Value:
+ *
+ ****************************************************************************/
+
+int wpa_driver_wext_get_auth_param(int sockfd, FAR const char *ifname,
+                                   int idx, uint32_t *value);
 
 /****************************************************************************
  * Name: wpa_driver_wext_disconnect

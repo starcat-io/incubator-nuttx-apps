@@ -79,35 +79,29 @@
  *
  ****************************************************************************/
 
-int nsh_consolemain(int argc, char *argv[])
+int nsh_consolemain(int argc, FAR char *argv[])
 {
   FAR struct console_stdio_s *pstate = nsh_newconsole();
   int ret;
 
   DEBUGASSERT(pstate != NULL);
 
+#ifdef CONFIG_NSH_USBDEV_TRACE
+  /* Initialize any USB tracing options that were requested */
+
+  usbtrace_enable(TRACE_BITSET);
+#endif
+
 #ifdef CONFIG_NSH_ROMFSETC
   /* Execute the start-up script */
 
   nsh_initscript(&pstate->cn_vtbl);
-
-#ifndef CONFIG_NSH_DISABLESCRIPT
-  /* Reset the option flags */
-
-  pstate->cn_vtbl.np.np_flags = NSH_NP_SET_OPTIONS_INIT;
-#endif
 #endif
 
 #ifdef CONFIG_NSH_NETINIT
   /* Bring up the network */
 
   netinit_bringup();
-#endif
-
-#ifdef CONFIG_NSH_USBDEV_TRACE
-  /* Initialize any USB tracing options that were requested */
-
-  usbtrace_enable(TRACE_BITSET);
 #endif
 
 #if defined(CONFIG_NSH_ARCHINIT) && defined(CONFIG_BOARDCTL_FINALINIT)
@@ -118,7 +112,7 @@ int nsh_consolemain(int argc, char *argv[])
 
   /* Execute the session */
 
-  ret = nsh_session(pstate);
+  ret = nsh_session(pstate, true, argc, argv);
 
   /* Exit upon return */
 

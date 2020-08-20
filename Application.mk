@@ -35,8 +35,6 @@
 #
 ############################################################################
 
-include $(APPDIR)/Make.defs
-
 # If this is an executable program (with MAINSRC), we must build it as a
 # loadable module for the KERNEL build (always) or if the tristate module
 # has the value "m"
@@ -61,7 +59,14 @@ else
 CWD = $(CURDIR)
 endif
 
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
+  LDLIBS += "${shell cygpath -w $(BIN)}"
+else
+  LDLIBS += $(BIN)
+endif
+
 SUFFIX = $(subst $(DELIM),.,$(CWD))
+PROGNAME := $(shell echo $(PROGNAME))
 
 # Object files
 
@@ -82,16 +87,16 @@ ifneq ($(BUILD_MODULE),y)
   OBJS += $(MAINOBJ)
 endif
 
-ROOTDEPPATH += --dep-path .
-ROOTDEPPATH += --obj-path .
-ROOTDEPPATH += --obj-suffix $(SUFFIX)$(OBJEXT)
+DEPPATH += --dep-path .
+DEPPATH += --obj-path .
+DEPPATH += --obj-suffix $(SUFFIX)$(OBJEXT)
 
 VPATH += :.
 
 # Targets follow
 
 all:: .built
-.PHONY: clean preconfig depend distclean
+.PHONY: clean depend distclean
 .PRECIOUS: $(BIN)
 
 define ELFASSEMBLE
@@ -112,8 +117,6 @@ endef
 define ELFLD
 	@echo "LD: $2"
 	$(Q) $(LD) $(LDELFFLAGS) $(LDLIBPATH) $(ARCHCRT0OBJ) $1 $(LDLIBS) -o $2
-#	$(Q) $(STRIP) $2
-	$(Q) chmod +x $2
 endef
 
 $(AOBJS): %$(SUFFIX)$(OBJEXT): %.S
@@ -129,10 +132,10 @@ $(CXXOBJS): %$(SUFFIX)$(OBJEXT): %$(CXXEXT)
 		$(call ELFCOMPILEXX, $<, $@), $(call COMPILEXX, $<, $@))
 
 .built: $(OBJS)
-ifeq ($(WINTOOL),y)
-	$(call ARLOCK, "${shell cygpath -w $(BIN)}", $(OBJS))
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
+	$(call ARLOCK, "${shell cygpath -w $(BIN)}", $^)
 else
-	$(call ARLOCK, $(BIN), $(OBJS))
+	$(call ARLOCK, $(BIN), $^)
 endif
 	$(Q) touch $@
 
@@ -153,10 +156,15 @@ PROGLIST := $(addprefix $(BINDIR)$(DELIM),$(PROGLIST))
 PROGOBJ := $(MAINOBJ)
 
 $(PROGLIST): $(MAINOBJ)
-ifeq ($(WINTOOL),y)
+	$(Q) mkdir -p $(BINDIR)
+ifeq ($(CONFIG_CYGWIN_WINTOOL),y)
 	$(call ELFLD,$(firstword $(PROGOBJ)),"${shell cygpath -w $(firstword $(PROGLIST))}")
 else
 	$(call ELFLD,$(firstword $(PROGOBJ)),$(firstword $(PROGLIST)))
+endif
+	$(Q) chmod +x $(firstword $(PROGLIST))
+ifneq ($(CONFIG_DEBUG_SYMBOLS),y)
+	$(Q) $(STRIP) $(firstword $(PROGLIST))
 endif
 	$(eval PROGLIST=$(filter-out $(firstword $(PROGLIST)),$(PROGLIST)))
 	$(eval PROGOBJ=$(filter-out $(firstword $(PROGOBJ)),$(PROGOBJ)))
@@ -187,8 +195,6 @@ install::
 
 endif # BUILD_MODULE
 
-preconfig::
-
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 ifneq ($(PROGNAME),)
 ifneq ($(PRIORITY),)
@@ -217,11 +223,11 @@ else
 context::
 endif
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(wildcard $(foreach SRC, $(SRCS), $(addsuffix /$(SRC), $(subst :, ,$(VPATH))))) $(DEPCONFIG)
 ifeq ($(filter %$(CXXEXT),$(SRCS)),)
-	$(Q) $(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(filter-out Makefile,$^) >Make.dep
+	$(Q) $(MKDEP) $(DEPPATH) "$(CC)" -- $(CFLAGS) -- $(filter-out Makefile,$(filter-out $(DEPCONFIG),$^)) >Make.dep
 else
-	$(Q) $(MKDEP) $(ROOTDEPPATH) "$(CXX)" -- $(CXXFLAGS) -- $(filter-out Makefile,$^) >Make.dep
+	$(Q) $(MKDEP) $(DEPPATH) "$(CXX)" -- $(CXXFLAGS) -- $(filter-out Makefile,$(filter-out $(DEPCONFIG),$^)) >Make.dep
 endif
 	$(Q) touch $@
 

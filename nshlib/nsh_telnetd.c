@@ -116,25 +116,16 @@ static int nsh_telnetmain(int argc, char *argv[])
   /* Output the platform message of the day */
 
   platform_motd(vtbl->iobuffer, IOBUFFERSIZE);
-  fprintf(pstate->cn_outstream, "%s/n", vtbl->iobuffer);
+  fprintf(pstate->cn_outstream, "%s\n", vtbl->iobuffer);
 
 # else
   /* Output the fixed message of the day */
 
-  fprintf(pstate->cn_outstream, "%s/n", g_nshmotd);
+  fprintf(pstate->cn_outstream, "%s\n", g_nshmotd);
 # endif
 #endif
 
   fflush(pstate->cn_outstream);
-
-  /* Execute the startup script.  If standard console is also defined, then
-   * we will not bother with the initscript here (although it is safe to
-   * call nshinitscript multiple times).
-   */
-
-#if defined(CONFIG_NSH_ROMFSETC) && !defined(CONFIG_NSH_CONSOLE)
-  nsh_initscript(vtbl);
-#endif
 
   /* Execute the login script */
 
@@ -266,6 +257,23 @@ int nsh_telnetstart(sa_family_t family)
       usbtrace_enable(TRACE_BITSET);
 #endif
 
+      /* Execute the startup script.  If standard console is also defined,
+       * then we will not bother with the initscript here (although it is
+       * safe to call nsh_initscript multiple times).
+       */
+
+#if defined(CONFIG_NSH_ROMFSETC) && !defined(CONFIG_NSH_CONSOLE)
+      nsh_initscript(vtbl);
+#endif
+
+      /* Perform architecture-specific final-initialization(if configured) */
+
+#if defined(CONFIG_NSH_ARCHINIT) && \
+    defined(CONFIG_BOARDCTL_FINALINIT) && \
+    !defined(CONFIG_NSH_CONSOLE)
+      boardctl(BOARDIOC_FINALINIT, 0);
+#endif
+
       /* Configure the telnet daemon */
 
       config.d_port      = HTONS(CONFIG_NSH_TELNETD_PORT);
@@ -286,7 +294,8 @@ int nsh_telnetstart(sa_family_t family)
           ret = telnetd_start(&config);
           if (ret < 0)
             {
-              _err("ERROR: Failed to start the Telnet IPv4 daemon: %d\n", ret);
+              _err("ERROR: Failed to start the Telnet IPv4 daemon: %d\n",
+                   ret);
             }
           else
             {
@@ -302,7 +311,8 @@ int nsh_telnetstart(sa_family_t family)
           ret = telnetd_start(&config);
           if (ret < 0)
             {
-              _err("ERROR: Failed to start the Telnet IPv6 daemon: %d\n", ret);
+              _err("ERROR: Failed to start the Telnet IPv6 daemon: %d\n",
+                   ret);
             }
           else
             {
@@ -328,11 +338,11 @@ int nsh_telnetstart(sa_family_t family)
  *   nsh_telnetstart() or it may be started from the NSH command line using
  *   this telnetd command.
  *
- *   Normally this command would be suppressed with CONFIG_NSH_DISABLE_TELNETD
- *   because the Telnet daemon is automatically started in nsh_main.c.  The
- *   exception is when CONFIG_NETINIT_NETLOCAL is selected.  IN that case, the
- *   network is not enabled at initialization but rather must be enabled from
- *   the NSH command line or via other applications.
+ *   This command would be suppressed with CONFIG_NSH_DISABLE_TELNETD
+ *   normally because the Telnet daemon is automatically started in
+ *   nsh_main.c. The exception is when CONFIG_NETINIT_NETLOCAL is selected.
+ *   IN that case, the network is not enabled at initialization but rather
+ *   must be enabled from the NSH command line or via other applications.
  *
  *   In that case, calling nsh_telnetstart() before the the network is
  *   initialized will fail.

@@ -60,32 +60,22 @@
 #  define CONFIG_FSUTILS_INIFILE_DEBUGLEVEL 0
 #endif
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 0
-#    define inidbg(format, ...) \
-       printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
-#  else
-#    define inidbg(x...)
-#  endif
-
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 1
-#    define iniinfo(format, ...) \
-       printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
-#  else
-#    define iniinfo(x...)
-#  endif
+#if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL < 1
+#  define inidbg _none
+#elif defined(CONFIG_CPP_HAVE_VARARGS)
+#  define inidbg(format, ...) \
+     printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 #else
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 0
-#    define inidbg printf
-#  else
-#    define inidbg (void)
-#  endif
+#  define inidbg printf
+#endif
 
-#  if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL > 1
-#    define iniinfo printf
-#  else
-#    define iniinfo (void)
-#  endif
+#if CONFIG_FSUTILS_INIFILE_DEBUGLEVEL < 2
+#  define iniinfo _none
+#elif defined(CONFIG_CPP_HAVE_VARARGS)
+#  define iniinfo(format, ...) \
+     printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+#else
+#  define iniinfo printf
 #endif
 
 /****************************************************************************
@@ -100,7 +90,7 @@ struct inifile_var_s
   FAR char *value;
 };
 
-/* This structure describes the state of one instance of the INI file parser */
+/* A structure describes the state of one instance of the INI file parser */
 
 struct inifile_state_s
 {
@@ -146,7 +136,7 @@ static FAR char *
 
 static bool inifile_next_line(FAR struct inifile_state_s *priv)
 {
-  /* Search ahead for the end of line mark (or possibly the end of file mark) */
+  /* Search ahead for the end of line mark (possibly the end of file mark) */
 
   while ((priv->nextch != '\n') && (priv->nextch != EOF))
     {
@@ -315,7 +305,7 @@ static bool inifile_seek_to_section(FAR struct inifile_state_s *priv,
                   *sectend = '\0';
                 }
 
-              /* Then compare the section name to the one we are looking for */
+              /* Then compare the section name to what we are looking for */
 
               if (strcasecmp(&priv->line[1], section) == 0)
                 {
